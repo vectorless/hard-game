@@ -95,6 +95,7 @@ let taunt = '';
 // Difficulty ----------------------------------------------------------
 // Multipliers tweak pattern timings and bullet speeds. Easy also recolors the boss blue.
 const DIFFS = {
+  BABY:   { label: 'BABY',   drain: 100 / 25, aimMul: 2.6, spiralMul: 3.0, wallMul: 3.0, homeMul: 3.0, bulletMul: 0.45,homeTurnMul: 0.2,  homeCap: 2,  gapW: 320, allOn: false, color: '#cc6699', colorBright: '#ff99cc', glow: 'rgba(255,153,204,', spiralCol: '#ffccee' },
   EASY:   { label: 'EASY',   drain: 100 / 55, aimMul: 1.7, spiralMul: 1.6, wallMul: 1.6, homeMul: 1.6, bulletMul: 0.7, homeTurnMul: 0.55, homeCap: 4,  gapW: 200, allOn: false, color: '#3377cc', colorBright: '#55aaff', glow: 'rgba(80,160,255,',  spiralCol: '#88ddff' },
   NORMAL: { label: 'NORMAL', drain: 100 / 80, aimMul: 1.0, spiralMul: 1.0, wallMul: 1.0, homeMul: 1.0, bulletMul: 1.0, homeTurnMul: 1.0,  homeCap: 8,  gapW: 110, allOn: false, color: '#cc3355', colorBright: '#ff3355', glow: 'rgba(255,80,120,',  spiralCol: '#ffd866' },
   HARD:   { label: 'HARD',   drain: 100 / 90, aimMul: 0.55,spiralMul: 0.55,wallMul: 0.6, homeMul: 0.5, bulletMul: 1.35,homeTurnMul: 1.6,  homeCap: 14, gapW: 78,  allOn: true,  color: '#7733cc', colorBright: '#bb55ff', glow: 'rgba(180,90,255,',  spiralCol: '#dd99ff' },
@@ -218,13 +219,14 @@ function loop(now) {
 
   // Input transitions
   if (state === MENU) {
-    const order = ['EASY', 'NORMAL', 'HARD'];
+    const order = ['BABY', 'EASY', 'NORMAL', 'HARD'];
     const idx = order.indexOf(difficulty);
     if (pressed['ArrowLeft']  || pressed['KeyA']) difficulty = order[Math.max(0, idx - 1)];
     if (pressed['ArrowRight'] || pressed['KeyD']) difficulty = order[Math.min(order.length - 1, idx + 1)];
-    if (pressed['Digit1']) difficulty = 'EASY';
-    if (pressed['Digit2']) difficulty = 'NORMAL';
-    if (pressed['Digit3']) difficulty = 'HARD';
+    if (pressed['Digit1']) difficulty = 'BABY';
+    if (pressed['Digit2']) difficulty = 'EASY';
+    if (pressed['Digit3']) difficulty = 'NORMAL';
+    if (pressed['Digit4']) difficulty = 'HARD';
     if (pressed['Enter']) startGame();
   }
   if ((state === DEAD || state === WIN) && pressed['KeyR']) startGame();
@@ -439,11 +441,12 @@ function drawTitle() {
   ctx.fillText('one boss. no checkpoints. tiny hitbox.', W/2, H/2 - 60);
 
   // difficulty selector
-  ctx.font = 'bold 22px Courier New';
+  ctx.font = 'bold 20px Courier New';
   const opts = [
-    { key: 'EASY',   x: W/2 - 200, on: '#55aaff' },
-    { key: 'NORMAL', x: W/2,       on: '#ff5577' },
-    { key: 'HARD',   x: W/2 + 200, on: '#bb55ff' },
+    { key: 'BABY',   x: W/2 - 300, on: '#ffaadd' },
+    { key: 'EASY',   x: W/2 - 100, on: '#55aaff' },
+    { key: 'NORMAL', x: W/2 + 100, on: '#ff5577' },
+    { key: 'HARD',   x: W/2 + 300, on: '#bb55ff' },
   ];
   for (const o of opts) {
     const sel = difficulty === o.key;
