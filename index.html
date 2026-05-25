@@ -95,8 +95,9 @@ let taunt = '';
 // Difficulty ----------------------------------------------------------
 // Multipliers tweak pattern timings and bullet speeds. Easy also recolors the boss blue.
 const DIFFS = {
-  EASY:   { label: 'EASY',   drain: 100 / 55, aimMul: 1.7, spiralMul: 1.6, wallMul: 1.6, homeMul: 1.6, bulletMul: 0.7, homeTurnMul: 0.55, homeCap: 4, color: '#3377cc', colorBright: '#55aaff', glow: 'rgba(80,160,255,', spiralCol: '#88ddff' },
-  NORMAL: { label: 'NORMAL', drain: 100 / 80, aimMul: 1.0, spiralMul: 1.0, wallMul: 1.0, homeMul: 1.0, bulletMul: 1.0, homeTurnMul: 1.0,  homeCap: 8, color: '#cc3355', colorBright: '#ff3355', glow: 'rgba(255,80,120,',  spiralCol: '#ffd866' },
+  EASY:   { label: 'EASY',   drain: 100 / 55, aimMul: 1.7, spiralMul: 1.6, wallMul: 1.6, homeMul: 1.6, bulletMul: 0.7, homeTurnMul: 0.55, homeCap: 4,  gapW: 200, allOn: false, color: '#3377cc', colorBright: '#55aaff', glow: 'rgba(80,160,255,',  spiralCol: '#88ddff' },
+  NORMAL: { label: 'NORMAL', drain: 100 / 80, aimMul: 1.0, spiralMul: 1.0, wallMul: 1.0, homeMul: 1.0, bulletMul: 1.0, homeTurnMul: 1.0,  homeCap: 8,  gapW: 110, allOn: false, color: '#cc3355', colorBright: '#ff3355', glow: 'rgba(255,80,120,',  spiralCol: '#ffd866' },
+  HARD:   { label: 'HARD',   drain: 100 / 90, aimMul: 0.55,spiralMul: 0.55,wallMul: 0.6, homeMul: 0.5, bulletMul: 1.35,homeTurnMul: 1.6,  homeCap: 14, gapW: 78,  allOn: true,  color: '#7733cc', colorBright: '#bb55ff', glow: 'rgba(180,90,255,',  spiralCol: '#dd99ff' },
 };
 let difficulty = 'NORMAL';
 let diff = DIFFS[difficulty];
@@ -217,10 +218,13 @@ function loop(now) {
 
   // Input transitions
   if (state === MENU) {
-    if (pressed['ArrowLeft']  || pressed['KeyA']) difficulty = 'EASY';
-    if (pressed['ArrowRight'] || pressed['KeyD']) difficulty = 'NORMAL';
+    const order = ['EASY', 'NORMAL', 'HARD'];
+    const idx = order.indexOf(difficulty);
+    if (pressed['ArrowLeft']  || pressed['KeyA']) difficulty = order[Math.max(0, idx - 1)];
+    if (pressed['ArrowRight'] || pressed['KeyD']) difficulty = order[Math.min(order.length - 1, idx + 1)];
     if (pressed['Digit1']) difficulty = 'EASY';
     if (pressed['Digit2']) difficulty = 'NORMAL';
+    if (pressed['Digit3']) difficulty = 'HARD';
     if (pressed['Enter']) startGame();
   }
   if ((state === DEAD || state === WIN) && pressed['KeyR']) startGame();
@@ -277,17 +281,17 @@ function update(dt) {
     const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
     const speed = (boss.hp > 50 ? 170 : 200) * diff.bulletMul;
     const spread = 0.18;
-    // easy fires a single shot instead of a 3-shot fan
-    const lo = difficulty === 'EASY' ? 0 : -1;
-    const hi = difficulty === 'EASY' ? 0 :  1;
+    // easy fires single; normal 3-shot fan; hard 5-shot wider fan
+    const lo = difficulty === 'EASY' ? 0 : difficulty === 'HARD' ? -2 : -1;
+    const hi = difficulty === 'EASY' ? 0 : difficulty === 'HARD' ?  2 :  1;
     for (let i = lo; i <= hi; i++) {
       const a = ang + i * spread;
       spawn('aim', boss.x, boss.y + 8, Math.cos(a) * speed, Math.sin(a) * speed, 5);
     }
   }
 
-  // Pattern: spiral (HP <= 75) ----------------------------------------
-  if (boss.hp <= 75) {
+  // Pattern: spiral (HP <= 75, or all-on for HARD) --------------------
+  if (diff.allOn || boss.hp <= 75) {
     tSpiral -= dt;
     spiralAngle += dt * 2.2;
     if (tSpiral <= 0) {
@@ -301,13 +305,12 @@ function update(dt) {
     }
   }
 
-  // Pattern: walls (HP <= 50) -----------------------------------------
-  if (boss.hp <= 50) {
+  // Pattern: walls (HP <= 50, or all-on for HARD) ---------------------
+  if (diff.allOn || boss.hp <= 50) {
     tWall -= dt;
     if (tWall <= 0) {
       tWall = 2.4 * diff.wallMul;
-      // easy: wider gap so the wall is much more forgiving
-      const gapW = difficulty === 'EASY' ? 200 : 110;
+      const gapW = diff.gapW;
       const gapX = rand(60, W - 60 - gapW);
       const y0 = boss.y + 40;
       const r = 7;
@@ -319,8 +322,8 @@ function update(dt) {
     }
   }
 
-  // Pattern: homing (HP <= 25) ----------------------------------------
-  if (boss.hp <= 25) {
+  // Pattern: homing (HP <= 25, or all-on for HARD) --------------------
+  if (diff.allOn || boss.hp <= 25) {
     tHome -= dt;
     if (tHome <= 0 && homeCount < diff.homeCap) {
       tHome = 0.55 * diff.homeMul;
@@ -437,12 +440,16 @@ function drawTitle() {
 
   // difficulty selector
   ctx.font = 'bold 22px Courier New';
-  const easySel = difficulty === 'EASY';
-  const normSel = difficulty === 'NORMAL';
-  ctx.fillStyle = easySel ? '#55aaff' : '#555';
-  ctx.fillText(easySel ? '> EASY <' : 'EASY', W/2 - 130, H/2 - 10);
-  ctx.fillStyle = normSel ? '#ff5577' : '#555';
-  ctx.fillText(normSel ? '> NORMAL <' : 'NORMAL', W/2 + 140, H/2 - 10);
+  const opts = [
+    { key: 'EASY',   x: W/2 - 200, on: '#55aaff' },
+    { key: 'NORMAL', x: W/2,       on: '#ff5577' },
+    { key: 'HARD',   x: W/2 + 200, on: '#bb55ff' },
+  ];
+  for (const o of opts) {
+    const sel = difficulty === o.key;
+    ctx.fillStyle = sel ? o.on : '#555';
+    ctx.fillText(sel ? `> ${o.key} <` : o.key, o.x, H/2 - 10);
+  }
   ctx.fillStyle = '#666';
   ctx.font = '13px Courier New';
   ctx.fillText('LEFT / RIGHT to choose', W/2, H/2 + 18);
